@@ -10,8 +10,9 @@ def fuzzy_match_column(columns, candidates):
     """Returns the first column name that matches any of the candidates (case-insensitive substring)."""
     cols_lower = {str(c).lower(): c for c in columns if pd.notna(c)}
     for cand in candidates:
+        cand_lower = cand.lower()
         for cl in cols_lower:
-            if cand in cl:
+            if cand_lower in cl:
                 return cols_lower[cl]
     return None
 
@@ -134,7 +135,7 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                 logger.info(f"Extracted {count} rows for daily_performances from sheet '{sheet_name}'")
 
         # 3. Category Performance (Top / Bottom Categories)
-        elif 'category' in sheet_lower or 'categories' in sheet_lower:
+        elif 'categor' in sheet_lower:
             cat_col = fuzzy_match_column(cols, ['category', 'name'])
             rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'value', 'actual'])
             rank_type = 'top' if 'top' in sheet_lower else 'bottom' if 'bottom' in sheet_lower else 'unranked'

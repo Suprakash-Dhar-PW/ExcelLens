@@ -53,7 +53,10 @@ export function useDashboardSocket(onRefresh) {
       };
 
       ws.onclose = () => {
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log('WebSocket intentional disconnect.');
+          return;
+        }
         console.log('WebSocket disconnected.');
         setIsConnected(false);
         if (pingInterval.current) clearInterval(pingInterval.current);
