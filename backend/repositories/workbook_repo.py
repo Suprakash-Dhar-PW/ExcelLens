@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy.orm import Session
 from models.database import Workbook, ExecutiveSummary, DailyPerformance, CategoryPerformance, OfferingPerformance, BatchPerformance, LeaderPerformance
 
@@ -12,13 +13,13 @@ class WorkbookRepository:
         self.db.refresh(wb)
         return wb
 
-    def update_workbook_status(self, workbook_id: str, status: str):
+    def update_workbook_status(self, workbook_id: str | uuid.UUID, status: str):
         wb = self.db.query(Workbook).filter(Workbook.id == workbook_id).first()
         if wb:
             wb.status = status
             self.db.commit()
 
-    def bulk_create_analytics_records(self, workbook_id: str, records_dict: dict):
+    def bulk_create_analytics_records(self, workbook_id: str | uuid.UUID, records_dict: dict):
         total_rows = 0
         
         # Executive Summary
