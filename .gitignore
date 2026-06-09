@@ -1,0 +1,11 @@
+.env
+backend/.env
+
+node_modules/
+venv/
+.venv/
+
+__pycache__/
+*.pyc
+*.db
+backend/dashboard.db

@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pandas
+openpyxl
+supabase
+google-genai
+python-dotenv
+pydantic
+python-multipart
+sqlalchemy
+psycopg[binary]
+alembic
