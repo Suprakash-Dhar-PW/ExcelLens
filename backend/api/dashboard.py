@@ -62,14 +62,36 @@ def get_alerts(db: Session = Depends(get_db)):
         alerts.append("All metrics are healthy and on track.")
     return alerts
 
+from sqlalchemy import text
+from models.database import Workbook, ExecutiveSummary, DailyPerformance
+
 import time
 start_time = time.time()
 
 @router.get("/health")
-def get_health():
+def get_health(db: Session = Depends(get_db)):
     uptime = time.time() - start_time
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+        workbook_count = db.query(Workbook).count()
+        exec_count = db.query(ExecutiveSummary).count()
+        daily_count = db.query(DailyPerformance).count()
+    except Exception as e:
+        db_status = "disconnected"
+        logger.error(f"Health check DB error: {e}")
+        workbook_count = 0
+        exec_count = 0
+        daily_count = 0
+
     return {
         "status": "ok",
         "uptime_seconds": round(uptime, 2),
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "database": db_status,
+        "rows": {
+            "workbooks": workbook_count,
+            "executive_summary": exec_count,
+            "daily_performance": daily_count
+        }
     }

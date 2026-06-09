@@ -2,6 +2,7 @@ import pandas as pd
 import io
 import math
 import logging
+import json
 from datetime import datetime
 
 logger = logging.getLogger('excel_parser')
@@ -71,10 +72,16 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
             return None
         if isinstance(val, pd.Timestamp):
             return val.to_pydatetime()
+        if isinstance(val, (int, float)):
+            try:
+                if val > 30000:
+                    return pd.to_datetime(val, unit='D', origin='1899-12-30').to_pydatetime()
+            except:
+                pass
         if isinstance(val, str):
             try:
                 from dateutil import parser
-                return parser.parse(val)
+                return parser.parse(val, fuzzy=True)
             except:
                 pass
         return None
@@ -86,19 +93,28 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
             
         sheet_lower = sheet_name.lower()
         cols = list(df.columns)
-        logger.info(f"Processing sheet '{sheet_name}' with {len(df)} rows. Columns: {cols}")
+        
+        branch = "None"
+        matched_cols = {}
+        count = 0
+        
+        logger.info("==================================================")
+        logger.info(f"SHEET NAME: {sheet_name}")
+        logger.info(f"ROWS: {len(df)}")
+        logger.info(f"COLUMNS: {cols}")
         
         # 1. Executive Summary
-        if 'summary' in sheet_lower or 'overall' in sheet_lower:
+        if any(x in sheet_lower for x in ['summary', 'overall', 'generic', 'vertical', 'last year', 'ac']):
+            branch = "Executive Summary"
             metric_col = cols[0]
             val_col = fuzzy_match_column(cols, ['value', 'amount', 'total', 'revenue', 'collection', 'actual', 'target', 'metric'])
             if not val_col and len(cols) > 1:
                 val_col = cols[1]
                 
-            logger.info(f"Executive Summary mapping - Metric: '{metric_col}', Value: '{val_col}'")
+            matched_cols['Metric Column'] = metric_col
+            matched_cols['Value Column'] = val_col
             
             if val_col:
-                count = 0
                 for _, row in df.iterrows():
                     metric = safe_str(row[metric_col])
                     val = safe_float(row[val_col])
@@ -108,18 +124,19 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                             "value": val
                         })
                         count += 1
-                logger.info(f"Extracted {count} rows for executive_summaries from sheet '{sheet_name}'")
 
         # 2. Daily Performance (DOD View)
-        elif 'dod' in sheet_lower or 'daily' in sheet_lower:
-            date_col = fuzzy_match_column(cols, ['date', 'day'])
-            coll_col = fuzzy_match_column(cols, ['collection', 'achieved', 'revenue', 'actual'])
-            tgt_col = fuzzy_match_column(cols, ['target', 'quota'])
+        elif any(x in sheet_lower for x in ['dod', 'daily', 'trend', 'achieved']):
+            branch = "Daily Performance"
+            date_col = fuzzy_match_column(cols, ['date', 'day', 'time'])
+            coll_col = fuzzy_match_column(cols, ['collection', 'achieved', 'revenue', 'actual', 'amount', 'value'])
+            tgt_col = fuzzy_match_column(cols, ['target', 'quota', 'goal'])
             
-            logger.info(f"Daily Performance mapping - Date: '{date_col}', Collection: '{coll_col}', Target: '{tgt_col}'")
+            matched_cols['Date Column'] = date_col
+            matched_cols['Collection Column'] = coll_col
+            matched_cols['Target Column'] = tgt_col
             
             if date_col:
-                count = 0
                 for _, row in df.iterrows():
                     d = safe_date(row[date_col])
                     c = safe_float(row[coll_col]) if coll_col else 0.0
@@ -131,18 +148,19 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                             "target": t
                         })
                         count += 1
-                logger.info(f"Extracted {count} rows for daily_performances from sheet '{sheet_name}'")
 
         # 3. Category Performance (Top / Bottom Categories)
         elif 'category' in sheet_lower or 'categories' in sheet_lower:
+            branch = "Category Performance"
             cat_col = fuzzy_match_column(cols, ['category', 'name'])
-            rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'value', 'actual'])
+            rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'value', 'actual', 'amount'])
             rank_type = 'top' if 'top' in sheet_lower else 'bottom' if 'bottom' in sheet_lower else 'unranked'
             
-            logger.info(f"Category Performance mapping - Category: '{cat_col}', Revenue: '{rev_col}', RankType: '{rank_type}'")
+            matched_cols['Category Column'] = cat_col
+            matched_cols['Revenue Column'] = rev_col
+            matched_cols['Rank Type'] = rank_type
             
             if cat_col and rev_col:
-                count = 0
                 for _, row in df.iterrows():
                     c = safe_str(row[cat_col])
                     r = safe_float(row[rev_col])
@@ -153,18 +171,19 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                             "rank_type": rank_type
                         })
                         count += 1
-                logger.info(f"Extracted {count} rows for category_performances from sheet '{sheet_name}'")
 
         # 4. Offering Performance (MTD / YTD)
-        elif 'offering' in sheet_lower:
-            off_col = fuzzy_match_column(cols, ['offering', 'product', 'service', 'name'])
-            rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'value', 'actual'])
+        elif any(x in sheet_lower for x in ['offering', 'program', 'product', 'course']):
+            branch = "Offering Performance"
+            off_col = fuzzy_match_column(cols, ['offering', 'product', 'service', 'name', 'program', 'course'])
+            rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'value', 'actual', 'amount'])
             period = 'YTD' if 'ytd' in sheet_lower else 'MTD'
             
-            logger.info(f"Offering Performance mapping - Offering: '{off_col}', Revenue: '{rev_col}', Period: '{period}'")
+            matched_cols['Offering Column'] = off_col
+            matched_cols['Revenue Column'] = rev_col
+            matched_cols['Period'] = period
             
             if off_col and rev_col:
-                count = 0
                 for _, row in df.iterrows():
                     o = safe_str(row[off_col])
                     r = safe_float(row[rev_col])
@@ -175,18 +194,19 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                             "period": period
                         })
                         count += 1
-                logger.info(f"Extracted {count} rows for offering_performances from sheet '{sheet_name}'")
 
         # 5. Batch Performance (Top Batches)
         elif 'batch' in sheet_lower:
+            branch = "Batch Performance"
             b_col = fuzzy_match_column(cols, ['batch', 'name'])
-            rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'actual'])
+            rev_col = fuzzy_match_column(cols, ['revenue', 'collection', 'actual', 'amount'])
             enr_col = fuzzy_match_column(cols, ['enroll', 'student', 'count'])
             
-            logger.info(f"Batch Performance mapping - Batch: '{b_col}', Revenue: '{rev_col}', Enrollments: '{enr_col}'")
+            matched_cols['Batch Column'] = b_col
+            matched_cols['Revenue Column'] = rev_col
+            matched_cols['Enrollments Column'] = enr_col
             
             if b_col:
-                count = 0
                 for _, row in df.iterrows():
                     b = safe_str(row[b_col])
                     r = safe_float(row[rev_col]) if rev_col else 0.0
@@ -198,18 +218,19 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                             "enrollments": e
                         })
                         count += 1
-                logger.info(f"Extracted {count} rows for batch_performances from sheet '{sheet_name}'")
                         
         # 6. Leader Performance
-        elif 'leader' in sheet_lower or 'manager' in sheet_lower:
-            l_col = fuzzy_match_column(cols, ['leader', 'name', 'manager'])
-            rev_col = fuzzy_match_column(cols, ['revenue', 'achieved', 'collection', 'actual'])
-            tgt_col = fuzzy_match_column(cols, ['target', 'quota'])
+        elif any(x in sheet_lower for x in ['leader', 'manager', 'performer', 'team']):
+            branch = "Leader Performance"
+            l_col = fuzzy_match_column(cols, ['leader', 'name', 'manager', 'performer', 'team'])
+            rev_col = fuzzy_match_column(cols, ['revenue', 'achieved', 'collection', 'actual', 'amount'])
+            tgt_col = fuzzy_match_column(cols, ['target', 'quota', 'goal'])
             
-            logger.info(f"Leader Performance mapping - Leader: '{l_col}', Revenue: '{rev_col}', Target: '{tgt_col}'")
+            matched_cols['Leader Column'] = l_col
+            matched_cols['Revenue Column'] = rev_col
+            matched_cols['Target Column'] = tgt_col
             
             if l_col:
-                count = 0
                 for _, row in df.iterrows():
                     l = safe_str(row[l_col])
                     r = safe_float(row[rev_col]) if rev_col else 0.0
@@ -221,10 +242,21 @@ def parse_excel_file(file_content: bytes, filename: str) -> dict:
                             "target": t
                         })
                         count += 1
-                logger.info(f"Extracted {count} rows for leader_performances from sheet '{sheet_name}'")
 
-    for k, v in records_dict.items():
-        logger.info(f"Total extracted for {k}: {len(v)}")
+        logger.info(f"BRANCH: {branch}")
+        for k, v in matched_cols.items():
+            logger.info(f"{k}: {v}")
+        logger.info(f"Extracted Rows: {count}")
+        logger.info("==================================================")
+
+    logger.info("Final Extracted Counts:\n" + json.dumps({
+        "executive_summaries": len(records_dict["executive_summaries"]),
+        "daily_performances": len(records_dict["daily_performances"]),
+        "category_performances": len(records_dict["category_performances"]),
+        "offering_performances": len(records_dict["offering_performances"]),
+        "batch_performances": len(records_dict["batch_performances"]),
+        "leader_performances": len(records_dict["leader_performances"])
+    }, indent=4))
         
     return records_dict
 

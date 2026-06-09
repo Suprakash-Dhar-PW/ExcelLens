@@ -73,16 +73,21 @@ export function useDashboardSocket(onRefresh) {
       };
     };
 
-    connect();
+    // Delay initial connection to handle React Strict Mode double-mount gracefully
+    const initTimeout = setTimeout(connect, 500);
 
     return () => {
       isMounted = false;
+      if (initTimeout) clearTimeout(initTimeout);
       if (pingInterval.current) clearInterval(pingInterval.current);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (wsRef.current) {
         wsRef.current.onclose = null; 
         wsRef.current.onerror = null; 
-        wsRef.current.close();
+        // Only close if it's actually open or connecting
+        if (wsRef.current.readyState === 1 || wsRef.current.readyState === 0) {
+            wsRef.current.close();
+        }
         wsRef.current = null;
       }
     };

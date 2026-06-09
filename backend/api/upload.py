@@ -30,12 +30,8 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
 
         # 1. Parse Excel (Returns dict of lists)
         records_dict = parse_excel_file(content, file.filename)
-        logger.info(f"Sheets detected: {list(records_dict.keys())}")
-        for sheet, rows in records_dict.items():
-            logger.debug(f"Sheet '{sheet}' extracted {len(rows)} rows")
-        logger.info(f"Parsed Excel file. Sheets detected: {list(records_dict.keys())}")
-        for sheet, rows in records_dict.items():
-            logger.debug(f"Sheet '{sheet}' contains {len(rows)} rows extracted.")
+        for key, value in records_dict.items():
+            logger.info(f"{key}: {len(value)} rows")
         if not any(len(v) for v in records_dict.values()):
             logger.warning("No data extracted from any sheet.")
             raise HTTPException(status_code=400, detail="Could not parse Excel or file is empty")

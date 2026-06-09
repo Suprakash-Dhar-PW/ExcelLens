@@ -4,8 +4,8 @@ import KPICard from './KPICard';
 export default function KPIGrid({ kpis, loading }) {
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        {[1, 2, 3, 4, 5, 6, 7].map(i => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
           <div key={i} className="h-28 rounded-xl bg-accent/20 animate-pulse border border-border" />
         ))}
       </div>
@@ -18,42 +18,35 @@ export default function KPIGrid({ kpis, loading }) {
   const formatNumber = (val) => new Intl.NumberFormat('en-US').format(val);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
       <KPICard 
-        title="Target Collection" 
-        value={formatCurrency(kpis.targetRevenue || 0)} 
+        title="Orders MTD" 
+        value={formatNumber(kpis.ordersMTD || 0)} 
+        subValue={`YTD: ${formatNumber(kpis.ordersYTD || 0)}`}
         isPositive={true}
       />
       <KPICard 
-        title="Achieved Collection" 
-        value={formatCurrency(kpis.totalRevenue || 0)} 
-        isPositive={kpis.totalRevenue >= kpis.targetRevenue}
-      />
-      <KPICard 
-        title="Projected Collection" 
-        value={formatCurrency((kpis.totalRevenue || 0) * 1.1)} // Dummy projection since not in API
+        title="Collection MTD" 
+        value={formatCurrency(kpis.collectionMTD || 0)} 
+        subValue={`YTD: ${formatCurrency(kpis.collectionYTD || 0)}`}
         isPositive={true}
       />
       <KPICard 
-        title="Delta" 
-        value={formatCurrency(Math.abs(kpis.revenueGap || 0))} 
-        subValue={kpis.revenueGap >= 0 ? 'Over Target' : 'Below Target'}
-        isPositive={kpis.revenueGap >= 0}
-      />
-      <KPICard 
-        title="Target Orders" 
-        value={formatNumber(kpis.targetOrders || 0)} 
+        title="AOV MTD" 
+        value={formatCurrency(kpis.aovMTD || 0)} 
         isPositive={true}
       />
       <KPICard 
-        title="Achieved Orders" 
-        value={formatNumber(kpis.totalOrders || 0)} 
-        isPositive={kpis.totalOrders >= kpis.targetOrders}
-      />
-      <KPICard 
-        title="Achievement %" 
+        title="Target Achievement" 
         value={`${kpis.achievement || 0}%`} 
+        subValue={`Target: ${formatCurrency(kpis.targetCollectionMTD || 0)}`}
         isPositive={kpis.achievement >= 100}
+      />
+      <KPICard 
+        title="Projected End of Month" 
+        value={formatCurrency(kpis.forecast?.projectedCollection || 0)} 
+        subValue={`Orders: ${formatNumber(kpis.forecast?.projectedOrders || 0)}`}
+        isPositive={true}
       />
     </div>
   );

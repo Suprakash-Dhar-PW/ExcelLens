@@ -6,8 +6,7 @@ from core.database import verify_db_connection
 from core.logger import logger
 import models.database  # Import models
 
-from core.database import engine
-models.database.Base.metadata.create_all(bind=engine)
+# Removed Base.metadata.create_all to rely on Alembic
 
 app = FastAPI(title="Revenue Command Center API")
 
@@ -15,7 +14,12 @@ app = FastAPI(title="Revenue Command Center API")
 async def startup_event():
     logger.info("Starting up Revenue Command Center API")
     if verify_db_connection():
-        logger.info("Successfully connected to database.")
+        from core.database import DATABASE_URL
+        host = "unknown"
+        if "@" in DATABASE_URL:
+            host = DATABASE_URL.split("@")[1].split(":")[0]
+        logger.info("Connected to PostgreSQL database successfully.")
+        logger.info(f"Database Host: {host}")
     else:
         logger.error("Failed to connect to the database. Check your DATABASE_URL.")
 

@@ -6,16 +6,32 @@ export default function DailyTrendChart({ data, loading }) {
     return <div className="h-[400px] rounded-xl bg-accent/20 animate-pulse border border-border flex items-center justify-center">Loading trend data...</div>;
   }
 
-  if (!data || data.length === 0) {
-    return <div className="h-[400px] rounded-xl border border-border flex items-center justify-center text-muted-foreground">No daily trend data available</div>;
+  if (!data || !data.data || data.data.length === 0) {
+    return (
+      <div className="h-[400px] rounded-xl border border-border p-6 flex flex-col shadow-lg glass-panel">
+         <h3 className="text-lg font-semibold mb-4 text-foreground/90">Daily Collection Trend</h3>
+         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground text-center">
+            <span className="text-3xl mb-3">📈</span>
+            <p className="font-medium">No daily trend data available</p>
+            <p className="text-sm mt-2 opacity-80">Raw rows loaded: {data?.raw_count || 0}</p>
+            <p className="text-sm opacity-80">Rows after filter: {data?.filtered_count || 0}</p>
+            {data?.raw_count > 0 && <p className="text-xs text-amber-500 mt-2">Hint: Check if date columns were parsed correctly.</p>}
+         </div>
+      </div>
+    );
   }
+
+  const chartData = data.data;
 
   return (
     <div className="h-[400px] min-h-[300px] min-w-0 p-6 glass-panel rounded-xl flex flex-col shadow-lg">
-      <h3 className="text-lg font-semibold mb-6 flex-none text-foreground/90">Daily Collection Trend</h3>
-      <div className="flex-1 w-full min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <div className="flex justify-between items-center mb-6 flex-none">
+        <h3 className="text-lg font-semibold text-foreground/90">Daily Collection Trend</h3>
+        <div className="text-xs text-muted-foreground">Raw: {data.raw_count} | Rendered: {data.filtered_count}</div>
+      </div>
+      <div className="flex-1 w-full min-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.6}/>
