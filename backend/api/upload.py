@@ -68,11 +68,30 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
             "leader_performances": db.query(LeaderPerformance).filter(LeaderPerformance.workbook_id == workbook.id).count()
         }
         logger.info(f"Analytics table counts for workbook {workbook.id}: {counts}")
+        warnings = []
+        if counts["daily_performances"] == 0:
+            warnings.append("Warning: Daily Performance count is zero")
+        if counts["offering_performances"] == 0:
+            warnings.append("Warning: Offering Performance count is zero")
+        if counts["batch_performances"] == 0:
+            warnings.append("Warning: Batch Performance count is zero")
+        if counts["leader_performances"] == 0:
+            warnings.append("Warning: Leader Performance count is zero")
+            
+        if warnings:
+            logger.warning("Upload generated warnings: " + ", ".join(warnings))
+
         return {
             "message": "File uploaded successfully",
             "workbook_id": str(workbook.id),
             "rows_processed": total_rows,
-            "table_counts": counts
+            "executive_summaries": counts["executive_summaries"],
+            "daily_performances": counts["daily_performances"],
+            "category_performances": counts["category_performances"],
+            "offering_performances": counts["offering_performances"],
+            "batch_performances": counts["batch_performances"],
+            "leader_performances": counts["leader_performances"],
+            "warnings": warnings
         }
     except Exception as e:
         import traceback

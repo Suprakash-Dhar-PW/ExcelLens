@@ -25,13 +25,13 @@ class AnalyticsService:
                         if k in mk: return metrics[mk]
                 return default
 
-            coll_mtd = get_metric(['collection mtd', 'achieved', 'revenue mtd', 'collection'])
-            target_coll_mtd = get_metric(['target collection', 'target mtd', 'quota'])
-            orders_mtd = get_metric(['orders mtd', 'order mtd', 'qty mtd', 'count'])
-            target_orders_mtd = get_metric(['target order', 'order target'])
+            coll_mtd = get_metric(['collection mtd', 'achieved mtd', 'revenue mtd', 'collection'])
+            target_coll_mtd = get_metric(['target collection', 'target mtd', 'quota', 'bizfin aop - may'])
+            orders_mtd = get_metric(['orders mtd', 'order mtd', 'qty mtd', 'count', 'achieved orders'])
+            target_orders_mtd = get_metric(['target order', 'order target', 'bizfin aop - orders'])
             
-            coll_ytd = get_metric(['collection ytd', 'revenue ytd'])
-            orders_ytd = get_metric(['orders ytd', 'order ytd'])
+            coll_ytd = get_metric(['collection ytd', 'revenue ytd', 'achieved ytd'])
+            orders_ytd = get_metric(['orders ytd', 'order ytd', 'achieved orders ytd'])
             
             if coll_mtd == 0:
                 coll_mtd = db.query(func.sum(DailyPerformance.collection)).filter(DailyPerformance.workbook_id == wb_id).scalar() or 0.0
@@ -48,7 +48,9 @@ class AnalyticsService:
             if orders_ytd == 0:
                 orders_ytd = orders_mtd * 3 # rough mock if missing
 
-            aov_mtd = (coll_mtd / orders_mtd) if orders_mtd > 0 else 0.0
+            aov_mtd = get_metric(['aov mtd', 'achieved aov', 'aov'])
+            if aov_mtd == 0:
+                aov_mtd = (coll_mtd / orders_mtd) if orders_mtd > 0 else 0.0
             achievement = (coll_mtd / target_coll_mtd * 100) if target_coll_mtd > 0 else 0.0
             
             # Forecasting (assume 20 elapsed days in a 30-day month for mock if dates aren't clear)
